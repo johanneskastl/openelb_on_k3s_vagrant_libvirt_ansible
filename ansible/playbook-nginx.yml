@@ -32,7 +32,7 @@
             enabled: false
           ingress:
             enabled: true
-            hostname: "nginx.192.168.121.7.sslip.io"
+            hostname: "nginx.{{ ip_address_range_openelb_start }}.sslip.io"
             ingressClassName: 'traefik'
 
     - name: 'Wait until all pods in the default namespace are running'
@@ -70,7 +70,7 @@
     - name: 'Wait for URL to be available'
       delegate_to: 'localhost'
       ansible.builtin.uri:
-        url: "http://nginx.192.168.121.7.sslip.io"
+        url: "http://nginx.{{ ip_address_range_openelb_start }}.sslip.io"
       register: result
       until: "result.status == 200"
       retries: 31
@@ -79,4 +79,4 @@
     - name: 'Output URL'
       delegate_to: 'localhost'
       ansible.builtin.debug:
-        msg: "You can access the Nginx deployment here: http://nginx.192.168.121.7.sslip.io"
+        msg: "You can access the Nginx deployment here: http://nginx.{{ ip_address_range_openelb_start }}.sslip.io"
