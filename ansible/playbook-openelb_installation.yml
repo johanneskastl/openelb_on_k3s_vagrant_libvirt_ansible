@@ -60,14 +60,14 @@
               annotations:
                 eip.openelb.kubesphere.io/is-default-eip: "true"
           spec:
-              address: 192.168.121.7-192.168.121.9
+              address: {{ ip_address_range_openelb_start }}-{{ ip_address_range_openelb_end }}
               priority: 100
               namespaces:
                 - default
                 - kube-system
               disable: false
               protocol: layer2
-              interface: can_reach:192.168.121.1
+              interface: can_reach:{{ ip_address_gateway }}
 
     - name: 'Patch the Traefik service to use the OpenELB loadbalancer'
       delegate_to: 'localhost'
@@ -80,4 +80,4 @@
           metadata:
             annotations:
               lb.kubesphere.io/v1alpha1: openelb
-              eip.openelb.kubesphere.io/v1alpha1: "192.168.121.7"
+              eip.openelb.kubesphere.io/v1alpha1: "{{ ip_address_range_openelb_start }}"
