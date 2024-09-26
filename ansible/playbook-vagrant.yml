@@ -8,3 +8,6 @@
 
 - name: 'Run playbook-openelb_installation.yml'
   ansible.builtin.import_playbook: playbook-openelb_installation.yml
+
+- name: 'Run playbook-nginx.yml'
+  ansible.builtin.import_playbook: playbook-nginx.yml
