@@ -1,0 +1,83 @@
+---
+
+- name: 'Install OpenELB'
+  hosts: 'k3s1'
+  gather_facts: true
+  become: false
+  module_defaults:
+    kubernetes.core.helm:
+      kubeconfig: './k3s-kubeconfig'
+    kubernetes.core.k8s:
+      kubeconfig: './k3s-kubeconfig'
+    kubernetes.core.k8s_info:
+      kubeconfig: './k3s-kubeconfig'
+
+  tasks:
+
+    - name: 'Create the openelb-system namespace'
+      delegate_to: 'localhost'
+      kubernetes.core.k8s:
+        name: 'openelb-system'
+        api_version: 'v1'
+        kind: 'Namespace'
+        state: 'present'
+
+    - name: 'Install openelb via the helm chart'
+      delegate_to: 'localhost'
+      kubernetes.core.helm:
+        chart_repo_url: 'https://openelb.github.io/openelb'
+        chart_ref: 'openelb'
+        release_name: 'openelb'
+        release_namespace: 'openelb-system'
+        release_values:
+          speaker:
+            layer2: true
+
+    - name: 'Wait until all pods are running'
+      delegate_to: 'localhost'
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        namespace: openelb-system
+      register: pod_list
+      until: |
+        pod_list | json_query("resources[*].status.phase") | unique | sort == ["Running"]
+        or
+        pod_list | json_query("resources[*].status.phase") | unique | sort == ["Running", "Succeeded"]
+      retries: 36
+      delay: 10
+
+    - name: 'Create a EIP'
+      delegate_to: 'localhost'
+      kubernetes.core.k8s:
+        state: 'present'
+        resource_definition: |
+          apiVersion: network.kubesphere.io/v1alpha2
+          kind: Eip
+          metadata:
+              name: eip-sample-pool
+              namespace: openelb-system
+              annotations:
+                eip.openelb.kubesphere.io/is-default-eip: "true"
+          spec:
+              address: 192.168.121.7-192.168.121.9
+              priority: 100
+              namespaces:
+                - default
+                - kube-system
+              disable: false
+              protocol: layer2
+              interface: can_reach:192.168.121.1
+
+    - name: 'Patch the Traefik service to use the OpenELB loadbalancer'
+      delegate_to: 'localhost'
+      kubernetes.core.k8s:
+        state: patched
+        kind: Service
+        name: traefik
+        namespace: kube-system
+        definition:
+          metadata:
+            annotations:
+              lb.kubesphere.io/v1alpha1: openelb
+              eip.openelb.kubesphere.io/v1alpha1: "192.168.121.7"
